@@ -5,14 +5,20 @@ const puppeteer = require('puppeteer');
 const _ = require('lodash');
 const formatDate = require('date-fns/format');
 
-const { categoryPage, CATEGORIES, METRICS_OPTS, coerceMetric } = require('./constants/socialblade');
+const {
+  countryPage,
+  METRICS_OPTS,
+  coerceMetric,
+} = require('./constants/socialblade');
+const COUNTRIES = require('./constants/countries');
 
 const args = require('yargs').options({
-  category: {
-    alias: 'c',
-    choices: CATEGORIES,
+  country: {
+    alias: 'co',
+    choices: COUNTRIES,
+    coerce: c => _.toLower(c),
     demandOption: true,
-    describe: 'the socialblade category to scrape',
+    describe: 'the ISO-3161 alpha-2 country code to scrape on socialblade',
     string: true,
   },
   metric: {
@@ -31,6 +37,14 @@ const args = require('yargs').options({
     describe: 'the number of threads that concurrently scrape socialblade',
     number: true,
   },
+  top: {
+    alias: 't',
+    choices: _.range(1, 251, 1),
+    demandOption: false,
+    default: 100,
+    describe: 'the top X countries to scrape',
+    number: true,
+  },
 }).argv;
 
 const GO_TO_OPTS = {
@@ -45,22 +59,27 @@ const result = [];
   const now = Date.now();
   console.log(`Started | ${formatDate(now, 'hh:mm:ssa')}`);
 
-  const { category, metric, numThreads } = args;
+  const { country, metric, numThreads, top } = args;
 
-  console.log(`Category: ${category} | Metric: ${metric} | Threads: ${numThreads}`)
+  console.log(
+    `Country: ${country} | Metric: ${metric} | Top: ${top} | Threads: ${numThreads}`
+  );
 
   const browser = await puppeteer.launch();
 
   try {
     const page = await browser.newPage();
-    await page.goto(categoryPage(category, metric), GO_TO_OPTS);
+    await page.goto(countryPage(country, metric), GO_TO_OPTS);
 
     const linkWrappers = await page.$$(
       "[style='float: left; width: 350px; line-height: 25px;']"
     );
     const linksPromises = _.map(linkWrappers, w => getHrefFromWrapper(w));
     const links = await Promise.all(linksPromises);
-    const validLinks = await _.filter(links, l => !_.isNull(l));
+    const validLinks = await _.chain(links)
+      .filter(l => !_.isNull(l))
+      .slice(0, top)
+      .value();
 
     await console.log(`Found ${validLinks.length} channels`);
 
@@ -79,8 +98,8 @@ const result = [];
   await browser.close();
 
   // write that final structure into a file
-  const filePath = `${path.join(__dirname, 'data')}`;
-  const fileName = `${category}_${metric}_${formatDate(
+  const filePath = `${path.join(__dirname, 'data', 'country')}`;
+  const fileName = `${country}_${metric}_top-${top}_${formatDate(
     now,
     'YYYY-MM-DDThh-mma'
   )}`;
@@ -90,7 +109,12 @@ const result = [];
     { flag: 'w' }
   );
 
-  console.log(`Finished | ${formatDate(Date.now(), 'hh:mm:ssa')} | ${filePath}/${fileName}.json`);
+  console.log(
+    `Finished | ${formatDate(
+      Date.now(),
+      'hh:mm:ssa'
+    )} | ${filePath}/${fileName}.json`
+  );
 })();
 
 async function scrapeYouTubeURL(browser, link) {

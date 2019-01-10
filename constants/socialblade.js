@@ -6,12 +6,12 @@ const MOST_VIEWED = 'mostviewed';
 module.exports = {};
 
 module.exports.METRICS_OPTS = [MOST_SUBSCRIBED, 'ms', MOST_VIEWED, 'mv'];
-module.exports.coerceMetric = (m) => {
+module.exports.coerceMetric = m => {
   if (_.includes([MOST_SUBSCRIBED, MOST_VIEWED], m)) return m;
-  if (m === "ms") return MOST_SUBSCRIBED;
-  if (m === "mv") return MOST_VIEWED;
+  if (m === 'ms') return MOST_SUBSCRIBED;
+  if (m === 'mv') return MOST_VIEWED;
   return null;
-}
+};
 
 module.exports.CATEGORIES = [
   'animals',
