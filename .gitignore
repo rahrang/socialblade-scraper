@@ -1,0 +1,9 @@
+.vscode
+node_modules
+.DS_Store
+
+data
+
+# make these files better before integrating them
+logger.js
+Untitled-1
